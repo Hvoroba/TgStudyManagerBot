@@ -1,9 +1,18 @@
 const { Telegraf } = require('telegraf');
-const dbModule = require('./database')
+const pdfparse = require('pdf-parse');
 const fs = require('fs')
+
+const dbModule = require('./database')
+const PdfModule = require('./PdfParser')
+
 const tokenTg = fs.readFileSync('tg_token.txt', 'utf8')
 
 const bot = new Telegraf(tokenTg)
+
+
+//
+PdfModule.GetSchedule(485)
+//
 
 bot.startPolling();
 
@@ -138,6 +147,14 @@ function ReplyWithAllTasks(chatId) {
     }
 
     return relplyMsgStr.replace(/"|{|}|[|]/g, '').replace(/,/g, '\n').replace(/:/g, ': ')
+}
+
+function DoPdfStuff() {
+    const pdfFile = fs.readFileSync('3_kurs_4_f-t.pdf')
+
+    pdfparse(pdfFile).then(function (data) {
+        console.log(data.info)
+    })
 }
 
 bot.launch()
