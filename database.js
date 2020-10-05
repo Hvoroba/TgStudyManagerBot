@@ -4,6 +4,9 @@ const { con } = require('sqlite-sync');
 
 sqlite.connect('db.db');
 
+const columns = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const columnsRu = ['ПОНЕДЕЛЬНИК', 'ВТОРНИК', 'СРЕДА', 'ЧЕТВЕРГ', 'ПЯТНИЦА', 'СУББОТА', 'ВОСКРЕСЕНЬЕ']
+
 function AddStuff(text, addData, errorList) {
     switch (addData[0].adding) {
         case 'task':
@@ -59,8 +62,9 @@ function DeleteTask(user_id, task_id) {
 
 function InsertSchedule(user_id, week, errorList) {
 
-    InsertSubject(user_id, week, errorList)
+    if (IfScheduleAlreadyExists(user_id)) DeleteSchedule(user_id)
 
+    InsertSubject(user_id, week, errorList)
 
     for (let i = 0; i < Object.keys(week).length; i++) {
         for (let j = 0; j < Object.keys(week[Object.keys(week)[i]]).length; j++) {
@@ -106,18 +110,67 @@ function InsertSubject(user_id, week, errorList) {
 }
 
 function IfScheduleAlreadyExists(user_id) {
-    let columns = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
     let rowsCounter = 0;
     for (let i = 0; i < columns.length; i++) {
         rowsCounter += Number.parseInt(Object.values(sqlite.run('SELECT COUNT (User_id) FROM e' + columns[i]
             + ' WHERE User_id = ' + user_id)[0]))
-    } // EVEN AND ODD DAYS OF WEEK
-    for (let i = 0; i < columns.length; i++) {
         rowsCounter += Number.parseInt(Object.values(sqlite.run('SELECT COUNT (User_id) FROM o' + columns[i]
             + ' WHERE User_id = ' + user_id)[0]))
-    }
+    } // EVEN(e) AND ODD(o) DAYS OF WEEK
 
     return rowsCounter
 }
 
-module.exports = { AddStuff, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IfScheduleAlreadyExists }
+function DeleteSchedule(user_id) {
+    for (let i = 0; i < columns.length; i++) {
+        sqlite.run('DELETE FROM e' + columns[i])
+        sqlite.run('DELETE FROM o' + columns[i])
+    }
+}
+
+function ShowSchedule(user_id) {
+
+    if (IfScheduleAlreadyExists(user_id) == false) return 'У Вас еще нет расписания.'
+
+    let obj = {}
+    let objCounter = 0
+
+    let reply = ''
+    let evenDays = ''
+    let oddDays = ''
+
+    for (let i = 0; i < columns.length; i++) {
+        obj[objCounter] = (Object.values((sqlite.run('SELECT Time AS Время, FullName AS Предмет FROM e' + columns[i] + ' AS day '
+            + 'INNER JOIN Subject AS s ON day.Subject_id = s._id '
+            + 'WHERE day.User_id = ' + user_id))))
+        obj[objCounter + 1] = (Object.values((sqlite.run('SELECT Time AS Время, FullName AS Предмет FROM o' + columns[i] + ' AS day '
+            + 'INNER JOIN Subject AS s ON day.Subject_id = s._id '
+            + 'WHERE day.User_id = ' + user_id))))
+        objCounter += 2
+    }
+
+    for (let i = 0; i < Object.keys(obj).length; i++) {
+
+        if (i % 2 == 0 & Object.keys(obj[i]).length != 0) {
+            evenDays += '\nЧЕТ. ' + columnsRu[Math.floor(i / 2)] + ':\n'
+        } else if (i % 2 != 0 & Object.keys(obj[i]).length != 0) {
+            oddDays += '\nНЕЧЕТ. ' + columnsRu[Math.floor(i / 2)] + ':\n'
+        }
+
+        for (let j = 0; j < Object.keys(Object.values(obj[i])).length; j++) {
+            if (i % 2 == 0) {
+                evenDays += (Object.values(Object.values(obj[i])[j])[0] + ': ' + Object.values(Object.values(obj[i])[j])[1] + '\n')
+            } else {
+                oddDays += (Object.values(Object.values(obj[i])[j])[0] + ': ' + Object.values(Object.values(obj[i])[j])[1] + '\n')
+            }
+        }
+    }
+
+    reply = evenDays + oddDays
+
+    return reply
+
+}
+
+module.exports = { AddStuff, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IfScheduleAlreadyExists, ShowSchedule }

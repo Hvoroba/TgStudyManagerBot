@@ -6,6 +6,7 @@ const needle = require('needle');
 
 const dbModule = require('./database')
 const excelParser = require('./excelParser');
+const { ShowSchedule } = require('./database');
 
 const tokenTg = fs.readFileSync('tg_token.txt', 'utf8')
 
@@ -37,7 +38,7 @@ bot.command('task_show', (ctx) => {
 //Добавление задачи
 let taskAddMode = new Boolean(false)
 const addData = {}
-const errorList = []
+let errorList = []
 
 bot.command('task_add', (ctx) => {
     ctx.reply('Чтобы добавить задачу введите сообщение в следующем формате: \n'
@@ -80,15 +81,18 @@ bot.on('document', async (ctx) => {
 
 
             dbModule.InsertSchedule(ctx.chat.id, excelParser.GetExcelData(), errorList)
-            ctx.reply('Schedule added')
+            ctx.reply('Расписание добавлено')
 
         });
-
 
         scheduleAddMode = false
     }
 
 })
+
+//Отобразить расписание
+bot.command('schedule_show', (ctx) => ctx.reply(ShowSchedule(ctx.chat.id)))
+
 //Отмена
 bot.command('cancel', (ctx) => {
     ctx.reply('Отмена')
