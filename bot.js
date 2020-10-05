@@ -1,18 +1,15 @@
 const { Telegraf } = require('telegraf');
-const pdfparse = require('pdf-parse');
 const fs = require('fs')
+const Axios = require('axios');
+const Path = require('path')
+const needle = require('needle');
 
 const dbModule = require('./database')
-const PdfModule = require('./PdfParser')
+const excelParser = require('./excelParser');
 
 const tokenTg = fs.readFileSync('tg_token.txt', 'utf8')
 
 const bot = new Telegraf(tokenTg)
-
-
-//
-PdfModule.GetSchedule(485)
-//
 
 bot.startPolling();
 
@@ -38,59 +35,87 @@ bot.command('task_show', (ctx) => {
 })
 
 //Добавление задачи
-let addMode = new Boolean(false)
+let taskAddMode = new Boolean(false)
 const addData = {}
-const errorList = {}
-errorList[0] = { idSelectError: null, insertError: null, dateError: null, wasErrors: false }
+const errorList = []
+
 bot.command('task_add', (ctx) => {
     ctx.reply('Чтобы добавить задачу введите сообщение в следующем формате: \n'
         + 'Предмет - задание - дедлайн(dd.mm.yyyy)\n'
         + 'Для того, чтобы задание записалось до следующей ближайшей пары, то оставь поле дедлайна пустым')
-    addMode = true
+    taskAddMode = true
     addData[0] = { chatId: ctx.chat.id, adding: 'task' }
 })
 
 //Добавление предметов
+subjectAddMode = new Boolean(false)
 bot.command('subject_add', (ctx) => {
     ctx.reply('Чтобы добавить предметы к уже существующим введи список новых предметов через запятую:\n'
         + 'Премет1, предмет2, предмет 3')
 
-    addMode = true
+    subjectAddMode = true
     addData[0] = { chatId: ctx.chat.id, adding: 'subject', subjectId: null, task: null, deadline: null }
 })
 
 //Добавление расписания
+let scheduleAddMode = new Boolean(false)
 bot.command('schedule_add', (ctx) => {
-    ctx.reply('Чтобы добавить расписание отправь мне excel файл формата:\n'
-        + 'ВСТАВИТЬ КАРТИНКУ')
+    ctx.reply('Чтобы добавить расписание отправь мне excel файл формата:\n')
+    ctx.replyWithPhoto({ source: 'sampleExcel.png' })
 
-    addMode = true
+    scheduleAddMode = true
     addData[0] = { chatId: ctx.chat.id, adding: 'schedule' }
 })
 
+bot.on('document', async (ctx) => {
+    //ДОБАВЛЕНИЕ РАСПИСАНИЯ
+    if (scheduleAddMode == true) {
+
+        const { file_id: fileId } = ctx.update.message.document;
+        const fileUrl = await ctx.telegram.getFileLink(fileId);
+
+
+        var out = fs.createWriteStream('schedule.xlsx');
+        needle.get(fileUrl).pipe(out).on('finish', function () {
+
+
+            dbModule.InsertSchedule(ctx.chat.id, excelParser.GetExcelData(), errorList)
+            ctx.reply('Schedule added')
+
+        });
+
+
+        scheduleAddMode = false
+    }
+
+})
 //Отмена
 bot.command('cancel', (ctx) => {
     ctx.reply('Отмена')
-    addMode = false
+    taskAddMode = false
+    scheduleAddMode = false
+    subjectAddMode = false
+
     delete addData[0]
+    errorList = []
 })
 
 bot.on('message', (msg) => {
-    // ДОБАВЛЕНИЕ
-    if (addMode & msg.message.text != '/cancel') {
+    // ДОБАВЛЕНИЕ ЗАДАЧИ
+    if (taskAddMode & msg.message.text != '/cancel') {
 
-        addData[0].subjectId = dbModule.GetSubjectId(msg.message.text, addData, errorList)
+        addData[0].subjectId = dbModule.GetSubjectId(msg.message.text, errorList)
 
-        if (errorList[0].wasErrors == false) {
+        if (errorList.length == 0) {
             dbModule.AddStuff(msg.message.text, addData, errorList)
         }
 
-        if (errorList[0].wasErrors == false) {
+        if (errorList.length == 0) {
             msg.reply('Объекты успешно добавлены\nВыход из режима добавления')
         } else {
             msg.reply(MakeErrorReport())
         }
-        addMode = false
+        taskAddMode = false
         delete addData[0]
     }
     //УДАЛЕНИЕ
@@ -106,25 +131,25 @@ bot.on('message', (msg) => {
 
         deleteMode = false
     }
+    //ДОБАВЛЕНИЕ РАСПИСАНИЯ
+    if (scheduleAddMode & msg.message.text != '/cancel') {
+        if (dbModule.IfScheduleAlreadyExists(ctx.chat.id) != 0) {
+            ctx.reply('У Вас уже есть расписание. При отправке документа расписание будет перезаписано.\n'
+                + '/cancel для отмены.')
+        }
+    }
 })
 
 function MakeErrorReport() {
     let errorMessage = 'При выполнении комманды произошла ошибка: '
-    if (errorList[0].idSelectError != null) {
-        errorMessage += errorList[0].idSelectError + ' — попытка использования несуществующего предмета; '
-    }
-    if (errorList[0].insertError != null) {
-        errorMessage += errorList[0].insertError + ' — неверный формат записи; '
-    }
-    if (errorList[0].dateError != null) {
-        errorMessage += errorList[0].dateError + '; '
+
+    for (let i = 0; i < errorList.length; i++) {
+        errorMessage += '\n' + errorList[i] + '\n'
     }
     errorMessage += '\nПопробуйте еще раз'
 
-    errorList[0].idSelectError = null
-    errorList[0].insertError = null
-    errorList[0].dateError = null
-    errorList[0].wasErrors = false
+
+    errorList = []
 
     return errorMessage;
 }
@@ -147,14 +172,6 @@ function ReplyWithAllTasks(chatId) {
     }
 
     return relplyMsgStr.replace(/"|{|}|[|]/g, '').replace(/,/g, '\n').replace(/:/g, ': ')
-}
-
-function DoPdfStuff() {
-    const pdfFile = fs.readFileSync('3_kurs_4_f-t.pdf')
-
-    pdfparse(pdfFile).then(function (data) {
-        console.log(data.info)
-    })
 }
 
 bot.launch()

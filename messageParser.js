@@ -8,7 +8,7 @@ function ParseTaskAddingMessage(text, addData, errorList) {
         if (text[i] == '-') {
 
             if (firstIndex == 0) {
-                if (errorList[0].wasErrors == true) {
+                if (errorList.length > 0) {
                     return;
                 }
                 firstIndex = i
@@ -19,8 +19,7 @@ function ParseTaskAddingMessage(text, addData, errorList) {
                 if (DateIsValid(text.slice(secondIndex + 1, text.length - 1).trim()) == true) {
                     addData[0].deadline = text.slice(secondIndex + 1, text.length - 1).trim()
                 } else {
-                    errorList[0].dateError = 'Неверный формат даты'
-                    errorList[0].wasErrors = true
+                    errorList.push('Неверный формат даты')
                 }
             }
         }

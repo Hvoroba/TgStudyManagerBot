@@ -3,3 +3,5 @@ sample.txt
 db.db
 node_modules/
 *.pdf
+*.xlsx
+sampleExcel.png
