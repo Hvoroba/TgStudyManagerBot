@@ -5,7 +5,7 @@ subject_edit - command is not added yet
 subject_show - command is not added yet
 schedule_add - Working, not all errors are tested
 schedule_edit - command is not added yet
-schedule_show - command is not added yet
+schedule_show - Working
 task_add - Working, not all errors are tested
 task_delete - Working, not all errors are tested
 task_show - Working, not all errors are tested
