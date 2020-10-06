@@ -1,6 +1,5 @@
 const parserModule = require('./messageParser')
 const sqlite = require('sqlite-sync');
-const { con } = require('sqlite-sync');
 
 sqlite.connect('db.db');
 
@@ -45,7 +44,6 @@ function GetSubjectId(subject, errorList) {
         return sqlite.run('SELECT _id FROM Subject WHERE FullName = \'' + subject + '\' OR ShortName = \'' + subject + '\'')[0]._id
     } catch (e) {
         errorList.push(e)
-
     }
 }
 
@@ -53,6 +51,36 @@ function GetAllTasks(user_id) {
     return (sqlite.run('SELECT T.Task_id AS №, S.FullName AS Предмет, T.Task AS Задача, T.Deadline AS До FROM Subject AS S '
         + 'INNER JOIN Task AS T ON '
         + 'S._id = T.Subject_id WHERE T.User_id = ' + user_id))
+}
+
+function ShowSubjects(user_id) {
+    return sqlite.run('SELECT FullName AS \'Полное название\', ShortName AS \'Сокращенное название\' FROM Subject '
+        + 'WHERE UserId = ' + user_id)
+}
+
+function EditSubject(message, errorList) {
+    let text = []
+    let subject_id
+    let taskShortName
+    text = parserModule.ParseSubjectEditMessage(message)
+    try {
+        subject_id = text[0]
+        taskShortName = text[1]
+    } catch (e) {
+        errorList.push('Проверьте правильность ввода.')
+        return false
+    }
+    try {
+        sqlite.run('UPDATE Subject SET ShortName = \'' + taskShortName + '\' WHERE _id = ' + subject_id)
+        return true
+    } catch (e) {
+        errorList.push(e)
+        return false
+    }
+}
+
+function GetAllSubjects(user_id) {
+    return sqlite.run('SELECT _id AS \'Номер предмета\', FullName AS \'Полное название\' FROM Subject WHERE UserId = ' + user_id)
 }
 
 function DeleteTask(user_id, task_id) {
@@ -173,4 +201,4 @@ function ShowSchedule(user_id) {
 
 }
 
-module.exports = { AddStuff, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IfScheduleAlreadyExists, ShowSchedule }
+module.exports = { AddStuff, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IfScheduleAlreadyExists, ShowSchedule, EditSubject, GetAllSubjects, ShowSubjects }

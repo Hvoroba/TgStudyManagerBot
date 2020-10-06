@@ -35,11 +35,28 @@ bot.command('task_show', (ctx) => {
     ctx.reply(ReplyWithAllTasks(ctx.chat.id))
 })
 
+//Просмотр предметов
+bot.command('subject_show', (ctx) => {
+    let textObj = dbModule.ShowSubjects(ctx.chat.id)
+
+    let text = ''
+
+    for (let i = 0; i < Object.keys(textObj).length; i++) {
+        for (let j = 0; j < Object.keys(Object.values(textObj[i])).length; j++) {
+            text += Object.keys(textObj[i])[j] + ': ' + Object.values(textObj[i])[j] + '\n'
+        }
+        text += '\n'
+    }
+
+    text = text.replace(/NULL/gi, '—')
+
+    ctx.reply(text.trim())
+})
+
 //Добавление задачи
 let taskAddMode = new Boolean(false)
 const addData = {}
 let errorList = []
-
 bot.command('task_add', (ctx) => {
     ctx.reply('Чтобы добавить задачу введите сообщение в следующем формате: \n'
         + 'Предмет - задание - дедлайн(dd.mm.yyyy)\n'
@@ -56,6 +73,13 @@ bot.command('subject_add', (ctx) => {
 
     subjectAddMode = true
     addData[0] = { chatId: ctx.chat.id, adding: 'subject', subjectId: null, task: null, deadline: null }
+})
+
+//Добавление короткого названия предмета
+let subjectEditMode = new Boolean(false)
+bot.command('subject_edit', (ctx) => {
+    ctx.reply('Для добавления короткого названия предмета выбирете номер предмета из списка и напишите нужное сокращенное название'
+        + ' в следующем формате:\n2 - ИПС\nСписок предметов:\n\n' + ReplyWithAllSubjects(ctx.chat.id))
 })
 
 //Добавление расписания
@@ -142,6 +166,13 @@ bot.on('message', (msg) => {
                 + '/cancel для отмены.')
         }
     }
+    //РЕДАКТИРОВАНИЕ ПРЕДМЕТОВ
+    if (subjectEditMode & msg.message.text != '/cancel') {
+        if (dbModule.EditSubject(msg.message.text, errorList)) {
+            msg.reply('Предмет обновлен. /show_subject для просмотра предметов.')
+            subjectEditMode = false
+        } else msg.reply(MakeErrorReport())
+    }
 })
 
 function MakeErrorReport() {
@@ -170,6 +201,27 @@ function ReplyWithAllTasks(chatId) {
 
     totalTasks = Object.keys(replyMsgObj).length
     for (let i = 0; i < totalTasks; i++) {
+        let myJSON = JSON.stringify(replyMsgObj[i])
+
+        relplyMsgStr += myJSON + '\n\n'
+    }
+
+    return relplyMsgStr.replace(/"|{|}|[|]/g, '').replace(/,/g, '\n').replace(/:/g, ': ')
+}
+
+function ReplyWithAllSubjects(chatId) {
+    let replyMsgObj = dbModule.GetAllSubjects(chatId)
+
+    if (Object.keys(replyMsgObj).length == 0) {
+        return 'Вы еще не добавили расписание.'
+    }
+
+    subjectEditMode = true
+
+    let relplyMsgStr = ''
+
+    totalSubjects = Object.keys(replyMsgObj).length
+    for (let i = 0; i < totalSubjects; i++) {
         let myJSON = JSON.stringify(replyMsgObj[i])
 
         relplyMsgStr += myJSON + '\n\n'
