@@ -5,7 +5,7 @@ function ParseTaskAddingMessage(text, addData, errorList) {
 
     for (let i = 0; i < text.length; i++) {
 
-        if (text[i] == '-') {
+        if (text[i] == '-' | text[i] == '—') {
 
             if (firstIndex == 0) {
                 if (errorList.length > 0) {
@@ -45,4 +45,15 @@ function GetNextSubjectData(subject) {
     ///////
 }
 
-module.exports = { ParseTaskAddingMessage }
+function ParseSubjectEditMessage(text) {
+    let message = []
+    for (let i = 0; i < text.length; i++) {
+        if (text[i] == '-' | text[i] == '—') {
+            message.push(text.slice(0, i - 1).trim())
+            message.push(text.slice(i + 1, text.length).trim())
+            return message
+        }
+    }
+}
+
+module.exports = { ParseTaskAddingMessage, ParseSubjectEditMessage }
