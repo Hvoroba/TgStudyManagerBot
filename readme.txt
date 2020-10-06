@@ -1,8 +1,8 @@
 Commands list and status(04.10.2020):
 
 subject_add - command is not added yet
-subject_edit - command is not added yet
-subject_show - command is not added yet
+subject_edit - Working
+subject_show - Working
 schedule_add - Working, not all errors are tested
 schedule_edit - command is not added yet
 schedule_show - Working
