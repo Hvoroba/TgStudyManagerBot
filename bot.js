@@ -39,6 +39,11 @@ bot.command('task_show', (ctx) => {
 bot.command('subject_show', (ctx) => {
     let textObj = dbModule.ShowSubjects(ctx.chat.id)
 
+    if (textObj.length == 0) {
+        ctx.reply('Вы еще не добавили расписание.')
+        return
+    }
+
     let text = ''
 
     for (let i = 0; i < Object.keys(textObj).length; i++) {
