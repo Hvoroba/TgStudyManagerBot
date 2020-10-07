@@ -5,6 +5,7 @@ const Path = require('path')
 const needle = require('needle');
 
 const dbModule = require('./database')
+const messageParser = require('./messageParser')
 const excelParser = require('./excelParser');
 
 const tokenTg = fs.readFileSync('tg_token.txt', 'utf8')
@@ -19,14 +20,31 @@ bot.start((ctx) => ctx.reply('Привет! Чтобы начать отслеж
 let deleteMode = new Boolean(false)
 let totalTasks;
 bot.command('task_delete', (ctx) => {
+    if (dbModule.CountTasks(ctx.chat.id) == 0) {
+        ctx.reply('У Вас нет активных задач. Добавить задачу /task_add')
+        return
+    }
+
     deleteMode = true
     ctx.reply('Выбирете номер нужной задачи:\n\n' + ReplyWithAllTasks(ctx.chat.id))
 })
 
+//Удаление всех задач
+let deleteAllMode = new Boolean(false)
+bot.command('task_delete_all', (ctx) => {
+    ctx.reply('Данная команда удалит все Ваши задачи. Вы уверены?\n'
+        + 'Да для продолжения /cancel для отмены.')
+    deleteAllMode = true
+})
+
 //Просмотр актуальных задач
 bot.command('task_show', (ctx) => {
-    ctx.reply(
-        (ctx.chat.id))
+    if (dbModule.CountTasks(ctx.chat.id) == 0) {
+        ctx.reply('У Вас нет активных задач. Добавить задачу /task_add')
+        return
+    }
+
+    ctx.reply(ReplyWithAllTasks(ctx.chat.id))
 })
 
 //Просмотр предметов
@@ -54,38 +72,40 @@ bot.command('subject_show', (ctx) => {
 
 //Добавление задачи
 let taskAddMode = new Boolean(false)
-const addData = {}
 let errorList = []
 bot.command('task_add', (ctx) => {
+    if (dbModule.IsScheduleAlreadyExists(ctx.chat.id) == false) {
+        ctx.reply('Сперва добавьте расписание.\n/schedule_add')
+        return
+    }
     ctx.reply('Чтобы добавить задачу введите сообщение в следующем формате: \n'
-        + 'Предмет - задание - дедлайн(dd.mm.yyyy)\n'
-        + 'Для того, чтобы задание записалось до следующей ближайшей пары, то оставь поле дедлайна пустым')
+        + 'ИПС : сдать отчет : 20.09.2020\n\n'
+        + 'Для записи задания на ближайшую пару оставь поле дедлайна пустым:\n'
+        + 'ИПС : сдать отчет\n\n'
+        + 'Для бессрочной записи:\nИПС : сдать отчет : БС')
     taskAddMode = true
-    addData[0] = { chatId: ctx.chat.id, adding: 'task' }
 })
 
 //Добавление короткого названия предмета
 let subjectEditMode = new Boolean(false)
 bot.command('subject_edit', (ctx) => {
     ctx.reply('Для добавления сокращенного названия предмета выбирете номер предмета из списка и напишите нужное сокращенное название'
-        + ' в следующем формате:\n2 - ИПС\nСписок предметов:\n'
+        + ' в следующем формате:\n2 : ИПС\nСписок предметов:\n'
         + 'Для удаления сокращенного название оставьте прочерк на месте названия:\n'
-        + '2 - _\n\n' + ReplyWithAllSubjects(ctx.chat.id))
+        + '2 : _\n\n' + ReplyWithAllSubjects(ctx.chat.id))
 })
 
 //Добавление расписания
 let scheduleAddMode = new Boolean(false)
 bot.command('schedule_add', (ctx) => {
-    if (dbModule.IfScheduleAlreadyExists(ctx.chat.id) != 0) {
+    if (dbModule.IsScheduleAlreadyExists(ctx.chat.id) == true) {
         ctx.reply('Внимание! У Вас уже есть расписание. При отправке документа расписание будет перезаписано.\n'
             + '/cancel для отмены.')
     }
     ctx.replyWithDocument({ source: 'scheduleForm.xlsx' }, { caption: 'Чтобы добавить расписание отправь мне заполненный excel файл.' })
 
     scheduleAddMode = true
-    addData[0] = { chatId: ctx.chat.id, adding: 'schedule' }
 })
-
 bot.on('document', async (ctx) => {
     //ДОБАВЛЕНИЕ РАСПИСАНИЯ
     if (scheduleAddMode == true) {
@@ -117,52 +137,59 @@ bot.command('cancel', (ctx) => {
     taskAddMode = false
     scheduleAddMode = false
     subjectAddMode = false
+    subjectEditMode = false
+    deleteMode = false
+    deleteAllMode = false
 
-    delete addData[0]
     errorList = []
 })
 
 bot.on('message', (msg) => {
     // ДОБАВЛЕНИЕ ЗАДАЧИ
     if (taskAddMode & msg.message.text != '/cancel') {
-
-        addData[0].subjectId = dbModule.GetSubjectId(msg.message.text, errorList)
-
+        let addData = messageParser.ParseTaskAddingMessage(msg.message.text, errorList)
         if (errorList.length == 0) {
-            dbModule.AddStuff(msg.message.text, addData, errorList)
+            dbModule.InsertTask(msg.chat.id, addData, errorList)
         }
 
         if (errorList.length == 0) {
-            msg.reply('Объекты успешно добавлены\nВыход из режима добавления')
+            msg.reply('Объекты успешно добавлены.')
             taskAddMode = false
         } else {
             msg.reply(MakeErrorReport())
         }
-        delete addData[0]
     }
+
     //УДАЛЕНИЕ
     if (deleteMode & msg.message.text != '/cancel') {
         let numb = parseInt(msg.message.text, 10)
-        if (numb > 1 & numb <= totalTasks) {
-            dbModule.DeleteTask(msg.chat.id, totalTasks)
-            msg.reply('Задача удалена\n' + ReplyWithAllTasks(msg.chat.id) + '\n'
-                + 'Выход из режима удаления')
+        if (numb >= 1 & numb <= totalTasks) {
+            dbModule.DeleteTask(msg.chat.id, numb)
+            msg.reply('Задача удалена\n' + ReplyWithAllTasks(msg.chat.id)
+                + '\n\n/cancel для выхода из режима удаления.')
         } else {
-            msg.reply('Неверно выбран номер задачи\nВыход из реждима удаления')
+            msg.reply('Неверно выбран номер задачи. Попробуйте еще раз.')
         }
-
-        deleteMode = false
     }
-    //ДОБАВЛЕНИЕ РАСПИСАНИЯ
-    if (scheduleAddMode & msg.message.text != '/cancel') {
 
-    }
     //РЕДАКТИРОВАНИЕ ПРЕДМЕТОВ
     if (subjectEditMode & msg.message.text != '/cancel') {
-        if (dbModule.EditSubject(msg.message.text, msg.chat.id, errorList)) {
+        let addData = messageParser.ParseSubjectEditMessage(msg.message.text)
+        if (dbModule.EditSubject(addData, msg.chat.id, errorList)) {
             msg.reply('Предмет обновлен. /subject_show для просмотра предметов.')
             subjectEditMode = false
         } else msg.reply(MakeErrorReport())
+    }
+
+    if (deleteAllMode & msg.message.text != '/cancel') {
+        if (msg.message.text.trim().toLowerCase() != 'да' & msg.message.text.trim().toLowerCase() != 'д') {
+            msg.reply('Ответ непонятен. Да для подтверждения /cancel для отмены.')
+            return
+        }
+
+        dbModule.DeleteAllTasks(msg.chat.id)
+        msg.reply('Задачи успешно удалены. Добавить задачу /task_add')
+        deleteAllMode = false
     }
 })
 
@@ -174,7 +201,6 @@ function MakeErrorReport() {
     }
     errorMessage += '\nПопробуйте еще раз'
 
-
     errorList = []
 
     return errorMessage;
@@ -182,11 +208,6 @@ function MakeErrorReport() {
 
 function ReplyWithAllTasks(chatId) {
     let replyMsgObj = dbModule.GetAllTasks(chatId)
-
-    if (Object.keys(replyMsgObj).length == 0) {
-        ctx.reply('У Вас нет активных задач.')
-        return;
-    }
 
     let relplyMsgStr = ''
 
@@ -202,11 +223,6 @@ function ReplyWithAllTasks(chatId) {
 
 function ReplyWithAllSubjects(chatId) {
     let replyMsgObj = dbModule.GetAllSubjects(chatId)
-
-    if (Object.keys(replyMsgObj).length == 0) {
-        subjectEditMode = false
-        return 'Вы еще не добавили расписание.'
-    }
 
     subjectEditMode = true
 
