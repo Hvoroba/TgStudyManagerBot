@@ -1,4 +1,3 @@
-const parserModule = require('./messageParser')
 const sqlite = require('sqlite-sync');
 
 sqlite.connect('db.db');
@@ -6,42 +5,36 @@ sqlite.connect('db.db');
 const columns = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const columnsRu = ['ПОНЕДЕЛЬНИК', 'ВТОРНИК', 'СРЕДА', 'ЧЕТВЕРГ', 'ПЯТНИЦА', 'СУББОТА', 'ВОСКРЕСЕНЬЕ']
 
-function AddStuff(text, addData, errorList) {
-    switch (addData[0].adding) {
-        case 'task':
-            parserModule.ParseTaskAddingMessage(text, addData, errorList)
-            try {
-                sqlite.run('INSERT INTO task VALUES('
-                    + addData[0].chatId + ', '
-                    + addData[0].subjectId + ', \''
-                    + addData[0].task + '\', \''
-                    + addData[0].deadline + '\')')
-            } catch (e) {
-                errorList.push(e)
-            }
-            break;
-        case 'subject':
+function InsertTask(user_id, addData, errorList) {
+    let subject_id = GetSubjectId(addData[0], errorList)
+    let task = addData[1]
+    let date = addData[2]
 
-            break;
-        case 'schedule':
+    task_id = CountTasks(user_id) + 1
 
-            break;
-        default:
-            return;
+    // console.log(subject_id + '\n' + task + '\n' + date + '\n' + task_id)
+
+    if (errorList.length != 0) return
+
+    try {
+        sqlite.run('INSERT INTO Task VALUES(' + task_id + ', ' + user_id + ', ' + subject_id + ', \''
+            + task + '\', \'' + date + '\')')
+    } catch (e) {
+        errorList.push(e)
     }
 }
 
-function GetSubjectId(subject, errorList) {
+function CountTasks(user_id) {
+    return Number.parseInt(sqlite.run('SELECT COUNT (*) AS \'count\' FROM Task WHERE User_id = ' + user_id)[0].count)
+}
 
-    for (let i = 0; i < subject.length; i++) {
-        if (subject[i] == '-') {
-            subject = subject.slice(0, i - 1).trim()
-            break;
-        }
-    }
+function GetSubjectId(subject, errorList) {
+    let subjFirstCapital = subject.toLowerCase()
+    subjFirstCapital = subjFirstCapital.replace(subjFirstCapital[0], subjFirstCapital[0].toUpperCase())
 
     try {
-        return sqlite.run('SELECT _id FROM Subject WHERE FullName = \'' + subject + '\' OR ShortName = \'' + subject + '\'')[0]._id
+        return sqlite.run('SELECT _id FROM Subject WHERE FullName = \'' + subject + '\' OR ShortName = \'' + subject + '\''
+            + ' OR FullName = \'' + subjFirstCapital + '\' OR ShortName = \'' + subjFirstCapital + '\'')[0]._id
     } catch (e) {
         errorList.push(e)
     }
@@ -58,14 +51,13 @@ function ShowSubjects(user_id) {
         + 'WHERE UserId = ' + user_id)
 }
 
-function EditSubject(message, user_id, errorList) {
-    let text = []
+function EditSubject(addData, user_id, errorList) {
     let subject_id
     let taskShortName
-    text = parserModule.ParseSubjectEditMessage(message)
+
     try {
-        subject_id = text[0]
-        taskShortName = text[1]
+        subject_id = addData[0]
+        taskShortName = addData[1]
     } catch (e) {
         errorList.push('Проверьте правильность ввода.')
         return false
@@ -117,6 +109,10 @@ function DeleteTask(user_id, task_id) {
     sqlite.run('DELETE FROM Task WHERE User_id = ' + user_id + ' AND task_id = ' + task_id)
 }
 
+function DeleteAllTasks(user_id) {
+    sqlite.run('DELETE FROM Task WHERE User_id = ' + user_id)
+}
+
 function InsertSchedule(user_id, week, errorList) {
 
     if (IfScheduleAlreadyExists(user_id)) DeleteSchedule(user_id)
@@ -142,31 +138,7 @@ function InsertSchedule(user_id, week, errorList) {
 
 }
 
-function InsertSubject(user_id, week, errorList) {
-
-    let subjList = []
-
-    for (let i = 0; i < Object.keys(week).length; i++) {
-
-        for (let j = 0; j < Object.keys(week[Object.keys(week)[i]]).length; j++) {
-
-            let subj = Object.values(Object.values(week[Object.keys(week)[i]])[j])[0]
-            subj = subj.trim()
-
-            if (subjList.includes(subj) == false) {
-                try {
-                    sqlite.run('INSERT INTO Subject VALUES((SELECT COUNT(_id) FROM Subject) + 1,'
-                        + user_id + ', \'' + subj + '\', NULL)')
-                } catch (e) {
-                    errorList.push(e)
-                }
-            }
-            subjList.push(subj)
-        }
-    }
-}
-
-function IfScheduleAlreadyExists(user_id) {
+function IsScheduleAlreadyExists(user_id) {
 
     let rowsCounter = 0;
     for (let i = 0; i < columns.length; i++) {
@@ -176,7 +148,8 @@ function IfScheduleAlreadyExists(user_id) {
             + ' WHERE User_id = ' + user_id)[0]))
     } // EVEN(e) AND ODD(o) DAYS OF WEEK
 
-    return rowsCounter
+    if (rowsCounter == 0) return false
+    return true
 }
 
 function DeleteSchedule(user_id) {
@@ -239,4 +212,7 @@ function IsShortNameAlreadyTaken(user_id, shortName) {
     return false
 }
 
-module.exports = { AddStuff, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IfScheduleAlreadyExists, ShowSchedule, EditSubject, GetAllSubjects, ShowSubjects }
+module.exports = {
+    InsertTask, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IsScheduleAlreadyExists, ShowSchedule, EditSubject,
+    GetAllSubjects, ShowSubjects, CountTasks, DeleteAllTasks
+}
