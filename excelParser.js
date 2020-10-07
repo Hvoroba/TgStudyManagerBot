@@ -1,6 +1,5 @@
 const xlsx = require('xlsx')
 
-
 function GetExcelData() {
 
     let wb = xlsx.readFile("schedule.xlsx")
@@ -60,9 +59,17 @@ function GetExcelData() {
     if (Object.keys(oSaturday).length != 0) week.oSaturday = oSaturday
     if (Object.keys(oSunday).length != 0) week.oSunday = oSunday
 
-    for (let i = Object.keys(week).length; i >= 0; i--) {
+    for (let i = Object.keys(week).length - 1; i >= 0; i--) {
 
         if (Object.values(week)[i] == null) delete week[Object.keys(week)[i]]
+    }
+
+    for (let i = Object.keys(week).length - 1; i >= 0; i--) {
+        let daySubjects = ''
+        for (let j = 0; j < Object.keys(Object.values(week)[i]).length; j++) {
+            daySubjects += Object.values(Object.values(week[Object.keys(week)[i]])[j])[0]
+        }
+        if (daySubjects.replace(' ', '').length == Object.keys(Object.values(week)[i]).length) delete week[Object.keys(week)[i]]
     }
 
     return week
