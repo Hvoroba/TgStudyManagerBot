@@ -58,7 +58,7 @@ function ShowSubjects(user_id) {
         + 'WHERE UserId = ' + user_id)
 }
 
-function EditSubject(message, errorList) {
+function EditSubject(message, user_id, errorList) {
     let text = []
     let subject_id
     let taskShortName
@@ -70,8 +70,36 @@ function EditSubject(message, errorList) {
         errorList.push('Проверьте правильность ввода.')
         return false
     }
+
     try {
-        sqlite.run('UPDATE Subject SET ShortName = \'' + taskShortName + '\' WHERE _id = ' + subject_id)
+        let obj = sqlite.run('SELECT * FROM Subject WHERE _id = ' + subject_id + ' AND UserId = ' + user_id)
+        if (obj.length == 0) {
+            errorList.push('Неверный номер предмета.')
+            return false
+        }
+    } catch (e) {
+        errorList.push(e)
+        return false
+    }
+
+
+    if (taskShortName == '_') {
+        try {
+            sqlite.run('UPDATE Subject SET ShortName = NULL WHERE _id = ' + subject_id + ' AND UserId = ' + user_id)
+            return true
+        } catch (e) {
+            errorList.push(e)
+            return false
+        }
+    }
+
+    if (IsShortNameAlreadyTaken(user_id, taskShortName)) {
+        errorList.push('Такое сокращенное имя уже есть. Сокращенные имена должны отличаться.')
+        return false
+    }
+
+    try {
+        sqlite.run('UPDATE Subject SET ShortName = \'' + taskShortName + '\' WHERE _id = ' + subject_id + ' AND UserId = ' + user_id)
         return true
     } catch (e) {
         errorList.push(e)
@@ -80,7 +108,8 @@ function EditSubject(message, errorList) {
 }
 
 function GetAllSubjects(user_id) {
-    return sqlite.run('SELECT _id AS \'Номер предмета\', FullName AS \'Полное название\' FROM Subject WHERE UserId = ' + user_id)
+    return sqlite.run('SELECT _id AS \'Номер предмета\', FullName AS \'Полное название\', ShortName AS '
+        + '\'Сокращенное название\' FROM Subject WHERE UserId = ' + user_id)
 }
 
 function DeleteTask(user_id, task_id) {
@@ -152,8 +181,8 @@ function IfScheduleAlreadyExists(user_id) {
 
 function DeleteSchedule(user_id) {
     for (let i = 0; i < columns.length; i++) {
-        sqlite.run('DELETE FROM e' + columns[i])
-        sqlite.run('DELETE FROM o' + columns[i])
+        sqlite.run('DELETE FROM e' + columns[i] + ' WHERE User_id = ' + user_id)
+        sqlite.run('DELETE FROM o' + columns[i] + ' WHERE User_id = ' + user_id)
     }
 }
 
@@ -199,6 +228,15 @@ function ShowSchedule(user_id) {
 
     return reply
 
+}
+
+function IsShortNameAlreadyTaken(user_id, shortName) {
+    let shortNameObj = sqlite.run('SELECT ShortName FROM Subject WHERE UserId = ' + user_id
+        + ' AND ShortName = \'' + shortName + '\'')
+
+    if (shortNameObj.length != 0) return true
+
+    return false
 }
 
 module.exports = { AddStuff, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IfScheduleAlreadyExists, ShowSchedule, EditSubject, GetAllSubjects, ShowSubjects }
