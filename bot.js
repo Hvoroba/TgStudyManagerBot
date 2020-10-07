@@ -6,7 +6,6 @@ const needle = require('needle');
 
 const dbModule = require('./database')
 const excelParser = require('./excelParser');
-const { ShowSchedule } = require('./database');
 
 const tokenTg = fs.readFileSync('tg_token.txt', 'utf8')
 
@@ -15,12 +14,6 @@ const bot = new Telegraf(tokenTg)
 bot.startPolling();
 
 bot.start((ctx) => ctx.reply('Привет! Чтобы начать отслеживать свои текущие задачи, пожалуйста, укажите актуальное расписание: /schedule_add'))
-
-bot.help((ctx) => ctx.reply('Send me a sticker'))
-
-bot.on('sticker', (ctx) => ctx.reply('Нормально'))
-
-bot.hears('hi', (ctx) => ctx.reply('Прнвт'))
 
 //Удаление задачи
 let deleteMode = new Boolean(false)
@@ -32,7 +25,8 @@ bot.command('task_delete', (ctx) => {
 
 //Просмотр актуальных задач
 bot.command('task_show', (ctx) => {
-    ctx.reply(ReplyWithAllTasks(ctx.chat.id))
+    ctx.reply(
+        (ctx.chat.id))
 })
 
 //Просмотр предметов
@@ -70,28 +64,23 @@ bot.command('task_add', (ctx) => {
     addData[0] = { chatId: ctx.chat.id, adding: 'task' }
 })
 
-//Добавление предметов
-subjectAddMode = new Boolean(false)
-bot.command('subject_add', (ctx) => {
-    ctx.reply('Чтобы добавить предметы к уже существующим введи список новых предметов через запятую:\n'
-        + 'Премет1, предмет2, предмет 3')
-
-    subjectAddMode = true
-    addData[0] = { chatId: ctx.chat.id, adding: 'subject', subjectId: null, task: null, deadline: null }
-})
-
 //Добавление короткого названия предмета
 let subjectEditMode = new Boolean(false)
 bot.command('subject_edit', (ctx) => {
-    ctx.reply('Для добавления короткого названия предмета выбирете номер предмета из списка и напишите нужное сокращенное название'
-        + ' в следующем формате:\n2 - ИПС\nСписок предметов:\n\n' + ReplyWithAllSubjects(ctx.chat.id))
+    ctx.reply('Для добавления сокращенного названия предмета выбирете номер предмета из списка и напишите нужное сокращенное название'
+        + ' в следующем формате:\n2 - ИПС\nСписок предметов:\n'
+        + 'Для удаления сокращенного название оставьте прочерк на месте названия:\n'
+        + '2 - _\n\n' + ReplyWithAllSubjects(ctx.chat.id))
 })
 
 //Добавление расписания
 let scheduleAddMode = new Boolean(false)
 bot.command('schedule_add', (ctx) => {
-    ctx.reply('Чтобы добавить расписание отправь мне excel файл формата:\n')
-    ctx.replyWithPhoto({ source: 'sampleExcel.png' })
+    if (dbModule.IfScheduleAlreadyExists(ctx.chat.id) != 0) {
+        ctx.reply('Внимание! У Вас уже есть расписание. При отправке документа расписание будет перезаписано.\n'
+            + '/cancel для отмены.')
+    }
+    ctx.replyWithDocument({ source: 'scheduleForm.xlsx' }, { caption: 'Чтобы добавить расписание отправь мне заполненный excel файл.' })
 
     scheduleAddMode = true
     addData[0] = { chatId: ctx.chat.id, adding: 'schedule' }
@@ -100,27 +89,27 @@ bot.command('schedule_add', (ctx) => {
 bot.on('document', async (ctx) => {
     //ДОБАВЛЕНИЕ РАСПИСАНИЯ
     if (scheduleAddMode == true) {
-
         const { file_id: fileId } = ctx.update.message.document;
         const fileUrl = await ctx.telegram.getFileLink(fileId);
 
+        if (IsExcelFile(fileUrl) == false) {
+            ctx.reply('Неверный формат файла. Только excel документы. Попробуйте еще раз.')
+            return
+        }
 
         var out = fs.createWriteStream('schedule.xlsx');
         needle.get(fileUrl).pipe(out).on('finish', function () {
-
-
             dbModule.InsertSchedule(ctx.chat.id, excelParser.GetExcelData(), errorList)
-            ctx.reply('Расписание добавлено')
+            ctx.reply('Расписание добавлено. /schedule_show для просмотра расписания.')
 
         });
 
         scheduleAddMode = false
     }
-
 })
 
 //Отобразить расписание
-bot.command('schedule_show', (ctx) => ctx.reply(ShowSchedule(ctx.chat.id)))
+bot.command('schedule_show', (ctx) => ctx.reply(dbModule.ShowSchedule(ctx.chat.id)))
 
 //Отмена
 bot.command('cancel', (ctx) => {
@@ -145,10 +134,10 @@ bot.on('message', (msg) => {
 
         if (errorList.length == 0) {
             msg.reply('Объекты успешно добавлены\nВыход из режима добавления')
+            taskAddMode = false
         } else {
             msg.reply(MakeErrorReport())
         }
-        taskAddMode = false
         delete addData[0]
     }
     //УДАЛЕНИЕ
@@ -166,15 +155,12 @@ bot.on('message', (msg) => {
     }
     //ДОБАВЛЕНИЕ РАСПИСАНИЯ
     if (scheduleAddMode & msg.message.text != '/cancel') {
-        if (dbModule.IfScheduleAlreadyExists(ctx.chat.id) != 0) {
-            ctx.reply('У Вас уже есть расписание. При отправке документа расписание будет перезаписано.\n'
-                + '/cancel для отмены.')
-        }
+
     }
     //РЕДАКТИРОВАНИЕ ПРЕДМЕТОВ
     if (subjectEditMode & msg.message.text != '/cancel') {
-        if (dbModule.EditSubject(msg.message.text, errorList)) {
-            msg.reply('Предмет обновлен. /show_subject для просмотра предметов.')
+        if (dbModule.EditSubject(msg.message.text, msg.chat.id, errorList)) {
+            msg.reply('Предмет обновлен. /subject_show для просмотра предметов.')
             subjectEditMode = false
         } else msg.reply(MakeErrorReport())
     }
@@ -218,6 +204,7 @@ function ReplyWithAllSubjects(chatId) {
     let replyMsgObj = dbModule.GetAllSubjects(chatId)
 
     if (Object.keys(replyMsgObj).length == 0) {
+        subjectEditMode = false
         return 'Вы еще не добавили расписание.'
     }
 
@@ -232,7 +219,20 @@ function ReplyWithAllSubjects(chatId) {
         relplyMsgStr += myJSON + '\n\n'
     }
 
-    return relplyMsgStr.replace(/"|{|}|[|]/g, '').replace(/,/g, '\n').replace(/:/g, ': ')
+    return relplyMsgStr.replace(/"|{|}|[|]/g, '').replace(/,/g, '\n').replace(/:/g, ': ').replace(/NULL/gi, '—')
+}
+
+function IsExcelFile(fileUrl) {
+    let excelFormats = ['.xlsx', '.xlsm', '.xltm']
+    if (fileUrl.length <= 5) return false
+
+    let format = fileUrl.slice(fileUrl.length - 5, fileUrl.length)
+
+    for (let i = 0; i < excelFormats.length; i++) {
+        if (format == excelFormats[i]) return true
+    }
+
+    return false
 }
 
 bot.launch()
