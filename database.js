@@ -12,8 +12,6 @@ function InsertTask(user_id, addData, errorList) {
 
     task_id = CountTasks(user_id) + 1
 
-    // console.log(subject_id + '\n' + task + '\n' + date + '\n' + task_id)
-
     if (errorList.length != 0) return
 
     try {
@@ -233,7 +231,30 @@ function IsShortNameAlreadyTaken(user_id, shortName) {
     return false
 }
 
+function GetAllOptions() {
+    let usersId = []
+    for (let i = 0; i < Number.parseInt(sqlite.run('SELECT count(DISTINCT User_id) AS count FROM Options')[0].count); i++) {
+        usersId.push(sqlite.run('SELECT DISTINCT User_id FROM Options')[i].User_id)
+    }
+
+    let remindOptions = {}
+
+    for (let i = 0; i < usersId.length; i++) {
+        remindOptions[i] = { user_id: usersId[i], option: sqlite.run('SELECT Remind AS R FROM Options WHERE User_id = ' + usersId[i])[0].R }
+    }
+
+    return remindOptions
+}
+
+function GetAllDeadlines(user_id) {
+    let deadlines = []
+    for (let i = 0; i < Number.parseInt(sqlite.run('SELECT COUNT(*) AS count FROM Task WHERE User_id = ' + user_id)[0].count); i++) {
+        deadlines.push(sqlite.run('SELECT Deadline FROM Task WHERE User_id = ' + user_id)[0].Deadline)
+    }
+    return deadlines
+}
+
 module.exports = {
     InsertTask, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IsScheduleAlreadyExists, ShowSchedule, EditSubject,
-    GetAllSubjects, ShowSubjects, CountTasks, DeleteAllTasks
+    GetAllSubjects, ShowSubjects, CountTasks, DeleteAllTasks, GetAllOptions, GetAllDeadlines
 }
