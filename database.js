@@ -109,13 +109,32 @@ function DeleteTask(user_id, task_id) {
     sqlite.run('DELETE FROM Task WHERE User_id = ' + user_id + ' AND task_id = ' + task_id)
 }
 
+function InsertSubject(user_id, week, errorList) {
+    let subjList = []
+    for (let i = 0; i < Object.keys(week).length; i++) {
+        for (let j = 0; j < Object.keys(week[Object.keys(week)[i]]).length; j++) {
+            let subj = Object.values(Object.values(week[Object.keys(week)[i]])[j])[0]
+            subj = subj.trim()
+            if (subjList.includes(subj) == false) {
+                try {
+                    sqlite.run('INSERT INTO Subject VALUES((SELECT COUNT(_id) FROM Subject) + 1,'
+                        + user_id + ', \'' + subj + '\', NULL)')
+                } catch (e) {
+                    errorList.push(e)
+                }
+            }
+            subjList.push(subj)
+        }
+    }
+}
+
 function DeleteAllTasks(user_id) {
     sqlite.run('DELETE FROM Task WHERE User_id = ' + user_id)
 }
 
 function InsertSchedule(user_id, week, errorList) {
 
-    if (IfScheduleAlreadyExists(user_id)) DeleteSchedule(user_id)
+    if (IsScheduleAlreadyExists(user_id)) DeleteSchedule(user_id)
 
     InsertSubject(user_id, week, errorList)
 
@@ -157,11 +176,13 @@ function DeleteSchedule(user_id) {
         sqlite.run('DELETE FROM e' + columns[i] + ' WHERE User_id = ' + user_id)
         sqlite.run('DELETE FROM o' + columns[i] + ' WHERE User_id = ' + user_id)
     }
+
+    sqlite.run('DELETE FROM Subject WHERE UserId = ' + user_id)
 }
 
 function ShowSchedule(user_id) {
 
-    if (IfScheduleAlreadyExists(user_id) == false) return 'У Вас еще нет расписания.'
+    if (IsScheduleAlreadyExists(user_id) == false) return 'У Вас еще нет расписания.'
 
     let obj = {}
     let objCounter = 0
