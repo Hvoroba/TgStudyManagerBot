@@ -3,10 +3,12 @@ const fs = require('fs')
 const Axios = require('axios');
 const Path = require('path')
 const needle = require('needle');
+const CronJob = require('cron').CronJob
 
 const dbModule = require('./database')
 const messageParser = require('./messageParser')
-const excelParser = require('./excelParser');
+const excelParser = require('./excelParser')
+const reminder = require('./reminder')
 
 const tokenTg = fs.readFileSync('tg_token.txt', 'utf8')
 
@@ -15,6 +17,11 @@ const bot = new Telegraf(tokenTg)
 bot.startPolling();
 
 bot.start((ctx) => ctx.reply('Привет! Чтобы начать отслеживать свои текущие задачи, пожалуйста, укажите актуальное расписание: /schedule_add'))
+
+let job = new CronJob('* */24 * * * *', function () {
+    console.log(reminder.GetExpiringDeadlines()) //TODO: parse this to more readable view
+}, null, true, 'Europe/Moscow')
+job.start()
 
 //Удаление задачи
 let deleteMode = new Boolean(false)
@@ -149,6 +156,11 @@ bot.on('message', (msg) => {
     if (taskAddMode & msg.message.text != '/cancel') {
         let addData = messageParser.ParseTaskAddingMessage(msg.message.text, errorList)
         if (errorList.length == 0) {
+            if (addData.length == 2) {
+                numberOfDaysWithSubject = dbModule.GetAllDaysWithSubject(addData[0], msg.chat.id)
+                addData.push(messageParser.GetNextSubjectDate(numberOfDaysWithSubject))
+            }
+
             dbModule.InsertTask(msg.chat.id, addData, errorList)
         }
 
