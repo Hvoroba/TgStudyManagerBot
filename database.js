@@ -266,18 +266,29 @@ function GetAllDaysWithSubject(subject, user_id) {
 
     for (let i = 0; i < columns.length; i++) {
         if (typeof sqlite.run('SELECT Time AS T FROM e' + columns[i] + ' WHERE User_id = ' + user_id
-            + ' AND Subject_id = ' + subject_id)[0] != 'undefined') numberOfDaysWithSubject.push(i+1)
+            + ' AND Subject_id = ' + subject_id)[0] != 'undefined') numberOfDaysWithSubject.push(i + 1)
     } // even week
 
     for (let i = 0; i < columns.length; i++) {
         if (typeof sqlite.run('SELECT Time AS T FROM o' + columns[i] + ' WHERE User_id = ' + user_id
-            + ' AND Subject_id = ' + subject_id)[0] != 'undefined') numberOfDaysWithSubject.push(i+1+7)
+            + ' AND Subject_id = ' + subject_id)[0] != 'undefined') numberOfDaysWithSubject.push(i + 1 + 7)
     } // odd week
 
     console.log(numberOfDaysWithSubject)
 }
 
+function GetTasksArray(user_id, deadline) {
+    let tasks = []
+    let querie = 'SELECT Task AS T FROM Task WHERE User_id = ' + user_id
+        + ' AND Deadline = \'' + deadline + '\''
+    for (let i = 0; i < sqlite.run(querie).length; i++) {
+        tasks.push(sqlite.run(querie)[i].T)
+    }
+
+    return tasks
+}
+
 module.exports = {
     InsertTask, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IsScheduleAlreadyExists, ShowSchedule, EditSubject,
-    GetAllSubjects, ShowSubjects, CountTasks, DeleteAllTasks, GetAllOptions, GetAllDeadlines, GetAllDaysWithSubject
+    GetAllSubjects, ShowSubjects, CountTasks, DeleteAllTasks, GetAllOptions, GetAllDeadlines, GetAllDaysWithSubject, GetTasksArray
 }
