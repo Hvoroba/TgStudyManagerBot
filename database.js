@@ -238,9 +238,14 @@ function GetAllOptions() {
     }
 
     let remindOptions = {}
+    let remindOptionsCount = 0
 
     for (let i = 0; i < usersId.length; i++) {
-        remindOptions[i] = { user_id: usersId[i], option: sqlite.run('SELECT Remind AS R FROM Options WHERE User_id = ' + usersId[i])[0].R }
+        let option = sqlite.run('SELECT Remind AS R FROM Options WHERE User_id = ' + usersId[i])[0].R + ''
+        for (let j = 0; j < option.length; j++) {
+            remindOptions[remindOptionsCount] = { user_id: usersId[i], option: option[j] }
+            remindOptionsCount++
+        }
     }
 
     return remindOptions
@@ -249,12 +254,30 @@ function GetAllOptions() {
 function GetAllDeadlines(user_id) {
     let deadlines = []
     for (let i = 0; i < Number.parseInt(sqlite.run('SELECT COUNT(*) AS count FROM Task WHERE User_id = ' + user_id)[0].count); i++) {
-        deadlines.push(sqlite.run('SELECT Deadline FROM Task WHERE User_id = ' + user_id)[0].Deadline)
+        deadlines.push(sqlite.run('SELECT Deadline FROM Task WHERE User_id = ' + user_id)[i].Deadline)
     }
+
     return deadlines
+}
+
+function GetAllDaysWithSubject(subject, user_id) {
+    let subject_id = GetSubjectId(subject)
+    let numberOfDaysWithSubject = []
+
+    for (let i = 0; i < columns.length; i++) {
+        if (typeof sqlite.run('SELECT Time AS T FROM e' + columns[i] + ' WHERE User_id = ' + user_id
+            + ' AND Subject_id = ' + subject_id)[0] != 'undefined') numberOfDaysWithSubject.push(i+1)
+    } // even week
+
+    for (let i = 0; i < columns.length; i++) {
+        if (typeof sqlite.run('SELECT Time AS T FROM o' + columns[i] + ' WHERE User_id = ' + user_id
+            + ' AND Subject_id = ' + subject_id)[0] != 'undefined') numberOfDaysWithSubject.push(i+1+7)
+    } // odd week
+
+    console.log(numberOfDaysWithSubject)
 }
 
 module.exports = {
     InsertTask, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IsScheduleAlreadyExists, ShowSchedule, EditSubject,
-    GetAllSubjects, ShowSubjects, CountTasks, DeleteAllTasks, GetAllOptions, GetAllDeadlines
+    GetAllSubjects, ShowSubjects, CountTasks, DeleteAllTasks, GetAllOptions, GetAllDeadlines, GetAllDaysWithSubject
 }
