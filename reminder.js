@@ -1,7 +1,7 @@
 const dbModule = require('./database')
 
 function GetExpiringDeadlines() {
-    let remindOptions = dbModule.GetAllOptions()
+    let remindOptions = dbModule.GetAllOptions() // user_id: , option: 
 
     let deadlinesToReport = {}
     let deadlinesToReportCounter = 0
@@ -26,7 +26,11 @@ function CheckIfTime(userId, daysLeft) {
 
     for (let i = 0; i < deadlines.length; i++) {
         if (deadlines[i] != 'Бессрочное задание' & IsDeadline(deadlines[i], daysLeft) == true) {
-            deadlinesToReport.push(deadlines[i])
+            let inArrayAlready = new Boolean(false)
+            for (let j = 0; j < deadlinesToReport.length; j++) {
+                if (deadlines[i] == deadlinesToReport[j]) inArrayAlready = true
+            }
+            if (inArrayAlready == false) deadlinesToReport.push(deadlines[i])
         }
     }
 
