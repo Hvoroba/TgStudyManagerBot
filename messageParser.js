@@ -44,10 +44,6 @@ function DateIsValid(dateString) {
     return false
 }
 
-//
-GetNextSubjectDate([9])
-//
-
 function GetNextSubjectDate(numberOfdaysWithSubject) {
     let numberOfDay = new Date().getDay()
     if (IsEvenWeek() == false) numberOfDay += 7
