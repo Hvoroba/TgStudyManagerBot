@@ -8,7 +8,8 @@ const CronJob = require('cron').CronJob
 const dbModule = require('./database')
 const messageParser = require('./messageParser')
 const excelParser = require('./excelParser')
-const reminder = require('./reminder')
+const reminder = require('./reminder');
+const { toASCII } = require('punycode');
 
 const tokenTg = fs.readFileSync('tg_token.txt', 'utf8')
 
@@ -18,8 +19,30 @@ bot.startPolling();
 
 bot.start((ctx) => ctx.reply('Привет! Чтобы начать отслеживать свои текущие задачи, пожалуйста, укажите актуальное расписание: /schedule_add'))
 
-let job = new CronJob('* */24 * * * *', function () {
-    console.log(reminder.GetExpiringDeadlines()) //TODO: parse this to more readable view
+/*
+1* Seconds: 0-59
+2* Minutes: 0-59
+3* Hours: 0-23
+4* Day of Month: 1-31
+5* Months: 0-11 (Jan-Dec)
+6* Day of Week: 0-6 (Sun-Sat)
+*/
+let job = new CronJob('* * *24 * * *', function () {
+    if (reminder.GetExpiringDeadlines() != false) {
+        let dataToSend = reminder.GetExpiringDeadlines()
+        let tasksArr
+
+        for (let i = 0; i < Object.keys(dataToSend).length; i++) {
+            for (let j = 0; j < dataToSend[i].deadlinesList.length; j++) {
+                tasksArr = dbModule.GetTasksArray(dataToSend[i].userId, dataToSend[i].deadlinesList[j])
+                let message = 'Задачи на ' + dataToSend[i].deadlinesList[j] + ':\n'
+                for (let k = 0; k < tasksArr.length; k++) {
+                    message += '\n' + tasksArr[k]
+                }
+                bot.telegram.sendMessage(dataToSend[i].userId, message)
+            }
+        }
+    }
 }, null, true, 'Europe/Moscow')
 job.start()
 
