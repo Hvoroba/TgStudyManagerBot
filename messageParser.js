@@ -10,14 +10,14 @@ function ParseTaskAddingMessage(text, errorList) {
         }
     }
 
-    addData.push(text.slice(0, firstIndex - 1).trim()) // Subject
+    addData.push(text.slice(0, firstIndex - 1).trim()) // 0 — Subject
 
     if (secondIndex == -1) {
-        addData.push(text.slice(firstIndex + 1, text.length).trim()) // Task
-        addData.push('NEXT DATE') // TODO GetNextSubjectData() to find next date
+        addData.push(text.slice(firstIndex + 1, text.length).trim()) // 1 — Task
+        //addData.push('NEXT DATE') // 2 — TODO GetNextSubjectData() to find next date
     } else {
-        addData.push(text.slice(firstIndex + 1, secondIndex - 1).trim()) // Task
-        addData.push(text.slice(secondIndex + 1, text.length).trim()) // Date
+        addData.push(text.slice(firstIndex + 1, secondIndex - 1).trim()) // 1 — Task
+        addData.push(text.slice(secondIndex + 1, text.length).trim()) // 2 — Date
     }
 
     if (DateIsValid(addData[2]) == false) {
@@ -30,7 +30,6 @@ function ParseTaskAddingMessage(text, errorList) {
 }
 
 function DateIsValid(dateString) {
-
     //Бессрочная задача
     if (dateString.toUpperCase() == 'БС') return true
 
@@ -45,8 +44,54 @@ function DateIsValid(dateString) {
     return false
 }
 
-function GetNextSubjectData(subject) {
-    ///////
+//
+GetNextSubjectDate([9])
+//
+
+function GetNextSubjectDate(numberOfdaysWithSubject) {
+    let numberOfDay = new Date().getDay()
+    if (IsEvenWeek() == false) numberOfDay += 7
+    let closestDay = null
+
+    if (numberOfdaysWithSubject.length == 1) {
+        closestDay = numberOfdaysWithSubject[0]
+    } else {
+        for (let i = 0; i < numberOfdaysWithSubject.length; i++) {
+            if (numberOfdaysWithSubject[i] > numberOfDay) {
+                closestDay = numberOfdaysWithSubject[i]
+                break;
+            }
+        }
+
+        if (closestDay == null) closestDay = numberOfdaysWithSubject[0]
+        // bc numberOfdaysWithSubject filled in from eMonday to oSunday, so the closest one will always be the first one
+    }
+
+    let daysDiff
+    closestDay > numberOfDay ? daysDiff = closestDay - numberOfDay : daysDiff = closestDay + 14 - numberOfDay
+
+    let closestDate = new Date()
+
+    closestDate.setDate(closestDate.getDate() + daysDiff)
+    let closestDateToStr = closestDate.getDate() + '.' + (closestDate.getMonth() + 1) + '.' + closestDate.getFullYear()
+
+    return closestDateToStr
+}
+
+function IsEvenWeek() {
+    let today = new Date()
+    let firstSeptember
+    if (today.getMonth() >= 8) {
+        firstSeptember = new Date(today.getFullYear(), 8, 1)
+    } else {
+        let year = today.getFullYear()
+        firstSeptember = new Date(--year, 8, 1)
+    }
+
+    let weekNumb = (Math.ceil((((today - firstSeptember) / 86400000) + firstSeptember.getDay() + 1) / 7))
+
+    if (weekNumb % 2 == 0) return true
+    return false
 }
 
 function ParseSubjectEditMessage(text) {
@@ -60,4 +105,8 @@ function ParseSubjectEditMessage(text) {
     }
 }
 
-module.exports = { ParseTaskAddingMessage, ParseSubjectEditMessage }
+function MakeRemindMessage(deadlines) {
+
+}
+
+module.exports = { ParseTaskAddingMessage, ParseSubjectEditMessage, MakeRemindMessage, GetNextSubjectDate }
