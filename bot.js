@@ -10,6 +10,7 @@ const messageParser = require('./messageParser')
 const excelParser = require('./excelParser')
 const reminder = require('./reminder');
 const { toASCII } = require('punycode');
+const { debug } = require('console');
 
 const tokenTg = fs.readFileSync('tg_token.txt', 'utf8')
 
@@ -17,7 +18,8 @@ const bot = new Telegraf(tokenTg)
 
 bot.startPolling();
 
-bot.start((ctx) => ctx.reply('Привет! Чтобы начать отслеживать свои текущие задачи, пожалуйста, укажите актуальное расписание: /schedule_add'))
+bot.start((ctx) => ctx.reply('Привет! Чтобы начать отслеживать свои текущие задачи, пожалуйста, укажите актуальное расписание: /schedule_add\n'
+    + 'Для настройки уведомлений /setup_options'))
 
 /*
 1* Seconds: 0-59
@@ -27,7 +29,7 @@ bot.start((ctx) => ctx.reply('Привет! Чтобы начать отслеж
 5* Months: 0-11 (Jan-Dec)
 6* Day of Week: 0-6 (Sun-Sat)
 */
-let job = new CronJob('* * *24 * * *', function () {
+let job = new CronJob('* * */24 * * *', function () {
     if (reminder.GetExpiringDeadlines() != false) {
         let dataToSend = reminder.GetExpiringDeadlines()
         let tasksArr
@@ -57,6 +59,36 @@ bot.command('task_delete', (ctx) => {
 
     deleteMode = true
     ctx.reply('Выбирете номер нужной задачи:\n\n' + ReplyWithAllTasks(ctx.chat.id))
+})
+
+//Настройка уведомлений
+bot.command('setup_options', (ctx) => {
+    setupMode = true
+
+    ctx.reply('За сколько дней Вы бы хотели получать уведмоления о дедлайне?', {
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: 'За день', callback_data: 'SetOptions1' }, { text: 'За три дня', callback_data: 'SetOptions3' }, { text: 'За неделю', callback_data: 'SetOptions7' }],
+                [{ text: 'За день и за три дня', callback_data: 'SetOptions13' }, { text: 'За день и за неделю', callback_data: 'SetOptions17' }],
+                [{ text: 'За три дня и за неделю', callback_data: 'SetOptions37' }],
+                [{ text: 'За день, за три дня и за неделю', callback_data: 'SetOptions137' }]
+            ]
+        }
+    })
+})
+
+bot.action(/SetOptions(.+)/, (ctx) => {
+    ctx.deleteMessage()
+
+    let daysBeforeDeadline = ctx.update.callback_query.data.replace('SetOptions', '')
+
+    dbModule.InsertOptions(ctx.chat.id, daysBeforeDeadline)
+
+    ctx.reply('Настройки обновлены.')
+})
+
+bot.on('callback_query', query => {
+
 })
 
 //Удаление всех задач
