@@ -288,7 +288,17 @@ function GetTasksArray(user_id, deadline) {
     return tasks
 }
 
+function InsertOptions(user_id, option) {
+    DeleteOptions(user_id)
+
+    sqlite.run('INSERT INTO Options VALUES(' + user_id + ', ' + option + ')')
+}
+
+function DeleteOptions(user_id) {
+    sqlite.run('DELETE FROM Options WHERE User_id = ' + user_id)
+}
+
 module.exports = {
-    InsertTask, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IsScheduleAlreadyExists, ShowSchedule, EditSubject,
+    InsertTask, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IsScheduleAlreadyExists, ShowSchedule, EditSubject, InsertOptions,
     GetAllSubjects, ShowSubjects, CountTasks, DeleteAllTasks, GetAllOptions, GetAllDeadlines, GetAllDaysWithSubject, GetTasksArray
 }
