@@ -10,6 +10,7 @@ task_add - Working
 task_delete - Working
 task_delete_all - Working
 task_show - Working
+setup_options - Notifications setup 
 cancel - working
 
 Will test all commands a couple more times, but for now everything seems to work
