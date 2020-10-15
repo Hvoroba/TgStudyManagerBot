@@ -5,25 +5,27 @@ sqlite.connect('db.db');
 const columns = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const columnsRu = ['ПОНЕДЕЛЬНИК', 'ВТОРНИК', 'СРЕДА', 'ЧЕТВЕРГ', 'ПЯТНИЦА', 'СУББОТА', 'ВОСКРЕСЕНЬЕ']
 
-function InsertTask(user_id, addData, errorList) {
-    let subject_id = GetSubjectId(addData[0], errorList)
-    let task = addData[1]
-    let date = addData[2]
+function InsertTask(user_id, task, subject_id, deadline, errorList) {
+    // let subject_id = GetSubjectId(addData[0], errorList)
+    // let task = addData[1]
+    // let date = addData[2]
 
-    task_id = CountTasks(user_id) + 1
+    task_id = CountTasks() + 1
 
     if (errorList.length != 0) return
 
     try {
         sqlite.run('INSERT INTO Task VALUES(' + task_id + ', ' + user_id + ', ' + subject_id + ', \''
-            + task + '\', \'' + date + '\')')
+            + task + '\', \'' + deadline + '\')')
+        // console.log('INSERT INTO Task VALUES(' + task_id + ', ' + user_id + ', ' + subject_id + ', \''
+        //     + task + '\', \'' + deadline + '\')')
     } catch (e) {
         errorList.push(e)
     }
 }
 
-function CountTasks(user_id) {
-    return Number.parseInt(sqlite.run('SELECT COUNT (*) AS \'count\' FROM Task WHERE User_id = ' + user_id)[0].count)
+function CountTasks() {
+    return Number.parseInt(sqlite.run('SELECT COUNT (*) AS \'count\' FROM Task')[0].count)
 }
 
 function GetSubjectId(subject, errorList) {
@@ -250,8 +252,7 @@ function GetAllDeadlines(user_id) {
     return deadlines
 }
 
-function GetAllDaysWithSubject(subject, user_id) {
-    let subject_id = GetSubjectId(subject)
+function GetAllDaysWithSubject(subject_id, user_id) {
     let numberOfDaysWithSubject = []
 
     for (let i = 0; i < columns.length; i++) {
@@ -264,7 +265,7 @@ function GetAllDaysWithSubject(subject, user_id) {
             + ' AND Subject_id = ' + subject_id)[0] != 'undefined') numberOfDaysWithSubject.push(i + 1 + 7)
     } // odd week
 
-    console.log(numberOfDaysWithSubject)
+    console.log(numberOfDaysWithSubject.length)
 }
 
 function GetTasksArray(user_id, deadline) {
