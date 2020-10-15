@@ -49,17 +49,7 @@ function ShowSubjects(user_id) {
         + 'WHERE UserId = ' + user_id)
 }
 
-function EditSubject(addData, user_id, errorList) {
-    let subject_id
-    let taskShortName
-
-    try {
-        subject_id = addData[0]
-        taskShortName = addData[1]
-    } catch (e) {
-        errorList.push('Проверьте правильность ввода.')
-        return false
-    }
+function EditSubject(user_id, subject_id, subjectShorName, errorList) {
 
     try {
         let obj = sqlite.run('SELECT * FROM Subject WHERE _id = ' + subject_id + ' AND UserId = ' + user_id)
@@ -73,7 +63,7 @@ function EditSubject(addData, user_id, errorList) {
     }
 
 
-    if (taskShortName == '_') {
+    if (subjectShorName == '_') {
         try {
             sqlite.run('UPDATE Subject SET ShortName = NULL WHERE _id = ' + subject_id + ' AND UserId = ' + user_id)
             return true
@@ -83,13 +73,13 @@ function EditSubject(addData, user_id, errorList) {
         }
     }
 
-    if (IsShortNameAlreadyTaken(user_id, taskShortName)) {
+    if (IsShortNameAlreadyTaken(user_id, subjectShorName)) {
         errorList.push('Такое сокращенное имя уже есть. Сокращенные имена должны отличаться.')
         return false
     }
 
     try {
-        sqlite.run('UPDATE Subject SET ShortName = \'' + taskShortName + '\' WHERE _id = ' + subject_id + ' AND UserId = ' + user_id)
+        sqlite.run('UPDATE Subject SET ShortName = \'' + subjectShorName + '\' WHERE _id = ' + subject_id + ' AND UserId = ' + user_id)
         return true
     } catch (e) {
         errorList.push(e)
