@@ -90,17 +90,6 @@ function IsEvenWeek() {
     return false
 }
 
-function ParseSubjectEditMessage(text) {
-    let addData = []
-    for (let i = 0; i < text.length; i++) {
-        if (text[i] == ':') {
-            addData.push(text.slice(0, i - 1).trim()) //id
-            addData.push(text.slice(i + 1, text.length).trim()) //shortName
-            return addData
-        }
-    }
-}
-
 function MakeRemindMessage(deadlines) {
 
 }
