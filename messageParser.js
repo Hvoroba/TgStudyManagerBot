@@ -30,8 +30,8 @@ function ParseTaskAddingMessage(text, errorList) {
 }
 
 function DateIsValid(dateString) {
-    //Бессрочная задача
-    if (dateString.toUpperCase() == 'БС') return true
+    // //Бессрочная задача
+    // if (dateString.toUpperCase() == 'БС') return true
 
     let naDate = dateString.slice(3, 6) + dateString.slice(0, 3) + dateString.slice(6, 10);
 
@@ -90,8 +90,4 @@ function IsEvenWeek() {
     return false
 }
 
-function MakeRemindMessage(deadlines) {
-
-}
-
-module.exports = { ParseTaskAddingMessage, ParseSubjectEditMessage, MakeRemindMessage, GetNextSubjectDate }
+module.exports = { ParseTaskAddingMessage, GetNextSubjectDate, DateIsValid }
