@@ -9,7 +9,6 @@ const dbModule = require('./database')
 const messageParser = require('./messageParser')
 const excelParser = require('./excelParser')
 const reminder = require('./reminder');
-const { toASCII } = require('punycode');
 const { debug } = require('console');
 
 const tokenTg = fs.readFileSync('tg_token.txt', 'utf8')
@@ -87,9 +86,6 @@ bot.action(/SetOptions(.+)/, (ctx) => {
     ctx.reply('Настройки обновлены.')
 })
 
-bot.on('callback_query', query => {
-
-})
 
 //Удаление всех задач
 let deleteAllMode = new Boolean(false)
@@ -150,11 +146,31 @@ bot.command('task_add', (ctx) => {
 
 //Добавление короткого названия предмета
 let subjectEditMode = new Boolean(false)
+let editingSubjectId
 bot.command('subject_edit', (ctx) => {
-    ctx.reply('Для добавления сокращенного названия предмета выбирете номер предмета из списка и напишите нужное сокращенное название'
-        + ' в следующем формате:\n2 : ИПС\nСписок предметов:\n'
-        + 'Для удаления сокращенного название оставьте прочерк на месте названия:\n'
-        + '2 : _\n\n' + ReplyWithAllSubjects(ctx.chat.id))
+    let textObj = dbModule.ShowSubjects(ctx.chat.id)
+    let keyboard = []
+
+    //Создание inline клавиатуры
+    for (let i = 0; i < Object.keys(textObj).length; i++) {
+        let subjectId = dbModule.GetSubjectId(Object.values(textObj[i])[0], errorList) + ''
+        if (Object.values(textObj[i])[0] != '—' & Object.values(textObj[i])[0] != '-' & Object.values(textObj[i])[0] != '_') {
+            keyboard.push([{ text: Object.values(textObj[i])[0], callback_data: 'Subject_edit' + subjectId }])
+        }
+    }
+
+    ctx.reply('Выбирите предмет к которому необходимо добавить короткое название:', {
+        reply_markup: { inline_keyboard: keyboard }
+    })
+})
+
+bot.action(/Subject_edit(.+)/, (ctx) => {
+    ctx.deleteMessage()
+
+    editingSubjectId = ctx.update.callback_query.data.replace('Subject_edit', '')
+    subjectEditMode = true
+
+    ctx.reply('Введите короткое название для предмета. /cancel для отмены.')
 })
 
 //Добавление расписания
@@ -241,8 +257,7 @@ bot.on('message', (msg) => {
 
     //РЕДАКТИРОВАНИЕ ПРЕДМЕТОВ
     if (subjectEditMode & msg.message.text != '/cancel') {
-        let addData = messageParser.ParseSubjectEditMessage(msg.message.text)
-        if (dbModule.EditSubject(addData, msg.chat.id, errorList)) {
+        if (dbModule.EditSubject(msg.chat.id, editingSubjectId, msg.message.text, errorList)) {
             msg.reply('Предмет обновлен. /subject_show для просмотра предметов.')
             subjectEditMode = false
         } else msg.reply(MakeErrorReport())
