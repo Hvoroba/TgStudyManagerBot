@@ -289,7 +289,12 @@ function DeleteOptions(user_id) {
     sqlite.run('DELETE FROM Options WHERE User_id = ' + user_id)
 }
 
+function SetOptions(user_id) {
+    sqlite.run('INSERT INTO Options SELECT ' + user_id + ' , 13'
+        + 'WHERE NOT EXISTS(SELECT * FROM Options WHERE User_id = ' + user_id + ')')
+}
+
 module.exports = {
     InsertTask, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IsScheduleAlreadyExists, ShowSchedule, EditSubject, InsertOptions,
-    GetAllSubjects, ShowSubjects, CountTasks, DeleteAllTasks, GetAllOptions, GetAllDeadlines, GetAllDaysWithSubject, GetTasksArray
+    GetAllSubjects, ShowSubjects, CountTasks, DeleteAllTasks, GetAllOptions, GetAllDeadlines, GetAllDaysWithSubject, GetTasksArray, SetOptions
 }

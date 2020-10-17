@@ -253,6 +253,7 @@ bot.on('document', async (ctx) => {
         }
 
         var out = fs.createWriteStream('schedule.xlsx');
+        dbModule.SetOptions(ctx.chat.id)
         needle.get(fileUrl).pipe(out).on('finish', function () {
             dbModule.InsertSchedule(ctx.chat.id, excelParser.GetExcelData(), errorList)
             ctx.reply('Расписание добавлено. /schedule_show для просмотра расписания.')
