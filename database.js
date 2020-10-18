@@ -33,8 +33,8 @@ function GetSubjectId(subject, errorList) {
     subjFirstCapital = subjFirstCapital.replace(subjFirstCapital[0], subjFirstCapital[0].toUpperCase())
 
     try {
-        return sqlite.run('SELECT _id FROM Subject WHERE FullName = \'' + subject + '\' OR ShortName = \'' + subject + '\''
-            + ' OR FullName = \'' + subjFirstCapital + '\' OR ShortName = \'' + subjFirstCapital + '\'')[0]._id
+        return sqlite.run('SELECT _id FROM Subject WHERE FullName = \'' + subject + '\''
+            + ' OR FullName = \'' + subjFirstCapital + '\'')[0]._id
     } catch (e) {
         errorList.push(e)
     }
@@ -47,51 +47,8 @@ function GetAllTasks(user_id) {
 }
 
 function ShowSubjects(user_id) {
-    return sqlite.run('SELECT FullName AS \'Полное название\', ShortName AS \'Сокращенное название\' FROM Subject '
+    return sqlite.run('SELECT FullName AS \'Название\' FROM Subject '
         + 'WHERE UserId = ' + user_id)
-}
-
-function EditSubject(user_id, subject_id, subjectShorName, errorList) {
-
-    try {
-        let obj = sqlite.run('SELECT * FROM Subject WHERE _id = ' + subject_id + ' AND UserId = ' + user_id)
-        if (obj.length == 0) {
-            errorList.push('Неверный номер предмета.')
-            return false
-        }
-    } catch (e) {
-        errorList.push(e)
-        return false
-    }
-
-
-    if (subjectShorName == '_') {
-        try {
-            sqlite.run('UPDATE Subject SET ShortName = NULL WHERE _id = ' + subject_id + ' AND UserId = ' + user_id)
-            return true
-        } catch (e) {
-            errorList.push(e)
-            return false
-        }
-    }
-
-    if (IsShortNameAlreadyTaken(user_id, subjectShorName)) {
-        errorList.push('Такое сокращенное имя уже есть. Сокращенные имена должны отличаться.')
-        return false
-    }
-
-    try {
-        sqlite.run('UPDATE Subject SET ShortName = \'' + subjectShorName + '\' WHERE _id = ' + subject_id + ' AND UserId = ' + user_id)
-        return true
-    } catch (e) {
-        errorList.push(e)
-        return false
-    }
-}
-
-function GetAllSubjects(user_id) {
-    return sqlite.run('SELECT _id AS \'Номер предмета\', FullName AS \'Полное название\', ShortName AS '
-        + '\'Сокращенное название\' FROM Subject WHERE UserId = ' + user_id)
 }
 
 function DeleteTask(user_id, task_id) {
@@ -108,7 +65,7 @@ function InsertSubject(user_id, week, errorList) {
             if (subjList.includes(subj) == false) {
                 try {
                     sqlite.run('INSERT INTO Subject VALUES((SELECT COUNT(_id) FROM Subject) + 1,'
-                        + user_id + ', \'' + subj + '\', NULL)')
+                        + user_id + ', \'' + subj + '\')')
                 } catch (e) {
                     errorList.push(e)
                 }
@@ -138,7 +95,7 @@ function InsertSchedule(user_id, week, errorList) {
                 sqlite.run('INSERT INTO ' + Object.keys(week)[i] + ' VALUES('
                     + user_id + ', \'' + Object.keys((Object.values(week[Object.keys(week)[i]])[j]))[0]
                     + '\', (SELECT _id FROM Subject WHERE FullName = \''
-                    + subj + '\' OR ShortName = \'' + subj + '\'))')
+                    + subj + '\'))')
             } catch (e) {
                 errorList.push(e)
             }
@@ -214,15 +171,6 @@ function ShowSchedule(user_id) {
 
 }
 
-function IsShortNameAlreadyTaken(user_id, shortName) {
-    let shortNameObj = sqlite.run('SELECT ShortName FROM Subject WHERE UserId = ' + user_id
-        + ' AND ShortName = \'' + shortName + '\'')
-
-    if (shortNameObj.length != 0) return true
-
-    return false
-}
-
 function GetAllOptions() {
     let usersId = []
     for (let i = 0; i < Number.parseInt(sqlite.run('SELECT count(DISTINCT User_id) AS count FROM Options')[0].count); i++) {
@@ -265,7 +213,7 @@ function GetAllDaysWithSubject(subject_id, user_id) {
             + ' AND Subject_id = ' + subject_id)[0] != 'undefined') numberOfDaysWithSubject.push(i + 1 + 7)
     } // odd week
 
-    console.log(numberOfDaysWithSubject.length)
+    return numberOfDaysWithSubject
 }
 
 function GetTasksArray(user_id, deadline) {
@@ -295,6 +243,6 @@ function SetOptions(user_id) {
 }
 
 module.exports = {
-    InsertTask, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IsScheduleAlreadyExists, ShowSchedule, EditSubject, InsertOptions,
-    GetAllSubjects, ShowSubjects, CountTasks, DeleteAllTasks, GetAllOptions, GetAllDeadlines, GetAllDaysWithSubject, GetTasksArray, SetOptions
+    InsertTask, GetSubjectId, GetAllTasks, DeleteTask, InsertSchedule, IsScheduleAlreadyExists, ShowSchedule, InsertOptions,
+    ShowSubjects, CountTasks, DeleteAllTasks, GetAllOptions, GetAllDeadlines, GetAllDaysWithSubject, GetTasksArray, SetOptions
 }
