@@ -30,9 +30,6 @@ function ParseTaskAddingMessage(text, errorList) {
 }
 
 function DateIsValid(dateString) {
-    // //Бессрочная задача
-    // if (dateString.toUpperCase() == 'БС') return true
-
     let naDate = dateString.slice(3, 6) + dateString.slice(0, 3) + dateString.slice(6, 10);
 
     if (Date.parse(naDate)) {
