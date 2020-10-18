@@ -199,37 +199,6 @@ bot.action(/Task_add(.+)/, (ctx) => {
 })
 
 
-//Добавление короткого названия предмета
-let subjectEditMode = new Boolean(false)
-let editingSubjectId
-bot.command('subject_edit', (ctx) => {
-    let textObj = dbModule.ShowSubjects(ctx.chat.id)
-    let keyboard = []
-
-    //Создание inline клавиатуры
-    for (let i = 0; i < Object.keys(textObj).length; i++) {
-        let subjectId = dbModule.GetSubjectId(Object.values(textObj[i])[0], errorList) + ''
-        if (Object.values(textObj[i])[0] != '—' & Object.values(textObj[i])[0] != '-' & Object.values(textObj[i])[0] != '_') {
-            keyboard.push([{ text: Object.values(textObj[i])[0], callback_data: 'Subject_edit' + subjectId }])
-        }
-    }
-    keyboard.push(InlineKeyboardCancelBtn)
-
-    ctx.reply('Выберите предмет к которому необходимо добавить короткое название:', {
-        reply_markup: { inline_keyboard: keyboard }
-    })
-})
-
-bot.action(/Subject_edit(.+)/, (ctx) => {
-    ctx.deleteMessage()
-
-    editingSubjectId = ctx.update.callback_query.data.replace('Subject_edit', '')
-    subjectEditMode = true
-
-    ctx.reply('Введите короткое название для предмета. /cancel для отмены.')
-})
-
-
 //Добавление расписания
 let scheduleAddMode = new Boolean(false)
 bot.command('schedule_add', (ctx) => {
@@ -318,15 +287,6 @@ bot.on('message', (msg) => {
     }
 
 
-    //РЕДАКТИРОВАНИЕ ПРЕДМЕТОВ
-    if (subjectEditMode & msg.message.text != '/cancel') {
-        if (dbModule.EditSubject(msg.chat.id, editingSubjectId, msg.message.text, errorList)) {
-            msg.reply('Предмет обновлен. /subject_show для просмотра предметов.')
-            subjectEditMode = false
-        } else msg.reply(MakeErrorReport())
-    }
-
-
     //ОЧИСТКА ЗАДАЧ
     if (deleteAllMode & msg.message.text != '/cancel') {
         if (msg.message.text.trim().toLowerCase() != 'да' & msg.message.text.trim().toLowerCase() != 'д') {
@@ -350,8 +310,7 @@ bot.action(/DeadlineAdd(.+)/, (ctx) => {
             break;
         case 'Closest':
             numberOfDaysWithSubject = dbModule.GetAllDaysWithSubject(taskAddingSubjectId, ctx.chat.id)
-            console.log(numberOfDaysWithSubject)
-            // taskAddingDeadline = messageParser.GetNextSubjectDate(numberOfDaysWithSubject)
+            taskAddingDeadline = messageParser.GetNextSubjectDate(numberOfDaysWithSubject)
             break;
         default:
             break
@@ -420,7 +379,6 @@ function ResetAllModes() {
     taskAddMode = false
     scheduleAddMode = false
     subjectAddMode = false
-    subjectEditMode = false
     deleteAllMode = false
     deadlineAddMode = false
 }
